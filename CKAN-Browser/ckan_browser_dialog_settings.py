@@ -21,13 +21,14 @@
  ***************************************************************************/
 """
 
+from builtins import next
 import os
-from PyQt4.QtCore import Qt
-from PyQt4 import QtGui, uic
-from PyQt4.QtGui import QApplication, QDialog, QFileDialog
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt import uic
+from qgis.PyQt.QtWidgets import QApplication, QDialog, QFileDialog, QDialogButtonBox, QVBoxLayout
 from collections import OrderedDict
-from util import Util
-from ckanconnector import CkanConnector
+from .util import Util
+from .ckanconnector import CkanConnector
 import json
 
 try:
@@ -39,7 +40,7 @@ except ImportError:
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'ckan_browser_dialog_settings.ui'))
 
-class CKANBrowserDialogSettings(QtGui.QDialog, FORM_CLASS):
+class CKANBrowserDialogSettings(QDialog, FORM_CLASS):
     def __init__(self, settings, iface, parent=None):
         """Constructor."""
         super(CKANBrowserDialogSettings, self).__init__(parent)
@@ -81,10 +82,10 @@ class CKANBrowserDialogSettings(QtGui.QDialog, FORM_CLASS):
             with open(json_path) as json_file:
                 self.pre_ckan_apis = json.load(json_file, object_pairs_hook=OrderedDict)
 
-            for key in self.pre_ckan_apis.keys():
+            for key in list(self.pre_ckan_apis.keys()):
                 self.IDC_cbPreCkanApi.addItem(key)
 
-            value = self.pre_ckan_apis.itervalues().next()
+            value = next(iter(list(self.pre_ckan_apis.values())))
             self.IDC_lblPreCkan.setText(value)
 
         except IOError as err:
@@ -106,7 +107,7 @@ class CKANBrowserDialogSettings(QtGui.QDialog, FORM_CLASS):
 
     def test_ckan_url(self):
         """ Test if URL in LineEdit is a valid CKAN API URL """
-        api_url = self.IDC_leCkanApi.text()
+        api_url = self.IDC_leCkanApi.text().strip()
         self.util.msg_log('URL: {0}'.format(api_url))
 
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -150,7 +151,7 @@ class CKANBrowserDialogSettings(QtGui.QDialog, FORM_CLASS):
             return
 
         # check URL - must not be empty
-        api_url = self.IDC_leCkanApi.text()
+        api_url = self.IDC_leCkanApi.text().strip()
         if self.util.check_api_url(api_url) is False:
             self.util.dlg_warning(self.util.tr(u'py_dlg_set_warn_ckan_url'))
             return
@@ -181,15 +182,15 @@ class CKANBrowserDialogSettings(QtGui.QDialog, FORM_CLASS):
     def authcfg_edit(self):
         dlg = QDialog(None)
         dlg.setWindowTitle(self.util.tr("Select Authentication"))
-        layout = QtGui.QVBoxLayout(dlg)
+        layout = QVBoxLayout(dlg)
 
         acs = QgsAuthConfigSelect(dlg)
         if self.IDC_leAuthCfg.text():
             acs.setConfigId(self.IDC_leAuthCfg.text())
         layout.addWidget(acs)
 
-        buttonbox = QtGui.QDialogButtonBox(
-            QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel,
+        buttonbox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
             Qt.Horizontal, dlg
         )
 

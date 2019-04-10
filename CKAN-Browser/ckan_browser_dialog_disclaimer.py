@@ -23,14 +23,14 @@
 
 import os
 
-from PyQt4 import QtGui, uic
-from util import Util
+from qgis.PyQt import QtGui, uic, QtWidgets
+from .util import Util
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'ckan_browser_dialog_disclaimer.ui'))
 
 
-class CKANBrowserDialogDisclaimer(QtGui.QDialog, FORM_CLASS):
+class CKANBrowserDialogDisclaimer(QtWidgets.QDialog, FORM_CLASS):
     def __init__(self, settings, parent=None):
         """Constructor."""
         super(CKANBrowserDialogDisclaimer, self).__init__(parent)

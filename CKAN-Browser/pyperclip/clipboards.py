@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import sys
 import subprocess
 from .exceptions import PyperclipException
@@ -39,7 +41,7 @@ def init_gtk_clipboard():
 
 def init_qt_clipboard():
     # $DISPLAY should exist
-    from PyQt4.QtGui import QApplication
+    from qgis.PyQt.QtWidgets import QApplication
 
     app = QApplication([])
 

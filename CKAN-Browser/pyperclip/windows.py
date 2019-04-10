@@ -1,6 +1,7 @@
 """
 This module implements clipboard handling on Windows using ctypes.
 """
+from builtins import object
 import time
 import contextlib
 import ctypes

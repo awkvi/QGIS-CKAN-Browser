@@ -21,20 +21,22 @@
  ***************************************************************************/
 """
 
+from builtins import next
+from builtins import range
 import math
 import os
-from PyQt4.QtCore import Qt, QTimer
-from PyQt4 import QtGui, uic
-from PyQt4.QtGui import QApplication, QListWidgetItem, QDialog, QMessageBox
-from ckan_browser_dialog_disclaimer import CKANBrowserDialogDisclaimer
-import pyperclip
-from ckanconnector import CkanConnector
-from util import Util
+from qgis.PyQt.QtCore import Qt, QTimer
+from qgis.PyQt import QtGui, uic
+from qgis.PyQt.QtWidgets import QApplication, QListWidgetItem, QDialog, QMessageBox
+from .ckan_browser_dialog_disclaimer import CKANBrowserDialogDisclaimer
+from CKANBrowser import pyperclip
+from .ckanconnector import CkanConnector
+from .util import Util
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'ckan_browser_dialog_base.ui'))
 
-class CKANBrowserDialog(QtGui.QDialog, FORM_CLASS):
+class CKANBrowserDialog(QDialog, FORM_CLASS):
 
     def __init__(self, settings, iface, parent=None):
         """Constructor."""
@@ -206,7 +208,7 @@ class CKANBrowserDialog(QtGui.QDialog, FORM_CLASS):
                 title_txt = 'no title'
             elif isinstance(e, dict):
                 # HACK! use first value
-                title_txt = e.itervalues().next()
+                title_txt = next(iter(list(e.values())))
             elif isinstance(e, list):
                 # HACK! use first value
                 title_txt = e[0]
@@ -231,10 +233,10 @@ class CKANBrowserDialog(QtGui.QDialog, FORM_CLASS):
             return
         self.IDC_textDetails.setText(
             u'{0}\n\n{1}\n{2}\n\n{3}'.format(
-                package.get('notes', 'no notes'),
-                package.get('author', 'no author'),
-                package.get('author_email', 'no author_email'),
-                package.get('license_id', 'no license_id')
+                package.get('notes', 'no notes') or "no notes",
+                package.get('author', 'no author') or "no author",
+                package.get('author_email', 'no author_email') or "no author_email",
+                package.get('license_id', 'no license_id') or "no license_id"
             )
         )
         if package.get('num_resources', 0) > 0:
@@ -278,6 +280,7 @@ class CKANBrowserDialog(QtGui.QDialog, FORM_CLASS):
                 return
 
             dest_file = os.path.join(dest_dir, os.path.split(resource['url'])[1])
+            dest_file = dest_file.replace("?","")
 
             # wmts
             format_lower = resource['format'].lower()

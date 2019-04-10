@@ -1,45 +1,29 @@
 # -*- coding: utf-8 -*-
 
+from builtins import str
+from builtins import range
+from builtins import object
+import urllib.request, urllib.parse, urllib.error
 import json
 import os
 import sys
 import string
-import urllib2
+import traceback
+import urllib.request, urllib.error, urllib.parse
 
-from PyQt4.QtCore import *
+from qgis.PyQt.QtCore import *
 from qgis.core import *
 from qgis.gui import *
 
+from qgis.PyQt.QtNetwork import *
 
-# Determine is the new QgsAuthManager is available
-try:
-    from qgis.core import QgsAuthManager
-    from PyQt4.QtNetwork import *
+class RequestsExceptionsTimeout(Exception):
+    pass
 
-    class RequestsExceptionsTimeout(Exception):
-        pass
+class RequestsExceptionsConnectionError(Exception):
+    pass
 
-    class RequestsExceptionsConnectionError(Exception):
-        pass
-
-except:
-    QgsAuthManager = None
-    if sys.platform.startswith('darwin') or os.name == 'nt':
-        import request as requests
-    else:
-        try:
-            import requests
-        except:
-            import request as requests
-
-        class RequestsExceptionsTimeout(requests.exceptions.Timeout):
-            pass
-
-        class RequestsExceptionsConnectionError(requests.exceptions.ConnectionError):
-            pass
-
-
-class CkanConnector():
+class CkanConnector(object):
     """CKAN Connector"""
 
     def __init__(self, settings, util):
@@ -88,7 +72,7 @@ class CkanConnector():
             group_filter = ''
         else:
             group_filter = '&fq=('
-            for i in xrange(len(groups)):
+            for i in range(len(groups)):
                 groups[i] = u'groups:{0}'.format(groups[i])
             group_filter += '+OR+'.join(groups) + ')'
         self.util.msg_log(u'group_filter: {0}'.format(group_filter))
@@ -140,96 +124,6 @@ class CkanConnector():
                 start_query
             )
         )
-
-    def download_resource(self, url, resource_format, dest_file, delete):
-        try:
-#             if resource_format is not None:
-#                 if resource_format.lower() == 'georss':
-#                     dest_file += '.xml'
-            if delete is True:
-                os.remove(dest_file)
-            #urls might have line breaks
-            url = self.util.remove_newline(url)
-            response = self._http_call(
-                url
-                , headers=self.ua_chrome
-                , verify=False
-                , stream=True
-                , proxies=self.settings.get_proxies()[1]
-                , timeout=self.settings.request_timeout
-            )
-            if not response.ok:
-                return False, self.util.tr(u'cc_download_error').format(response.reason), None
-
-            # TODO remove after testing
-            # doesn't work headers is object of type 'request.structures.CaseInsensitiveDict'
-            # self.util.msg_log(u'{0}'.format(json.dumps(response.headers, indent=2, sort_keys=True)))
-            for k, v in response.headers.iteritems():
-                self.util.msg_log(u"['{0}']: \t{1}".format(k, v))
-
-            # Content-Disposition:
-            # http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html
-            # http://www.iana.org/assignments/cont-disp/cont-disp.xhtml
-            file_name_from_service = self.__file_name_from_service(
-                url
-                , response.headers.get('content-disposition')
-                , response.headers.get('content-type')
-            )
-            self.util.msg_log(u'file name from service: {0}'.format(file_name_from_service))
-            if file_name_from_service:
-                # set new dest_file name
-                dest_file = os.path.join(os.path.dirname(dest_file), file_name_from_service)
-
-            self.util.msg_log(u'dest_file: {0}'.format(dest_file))
-            #HACK for https://github.com/BergWerkGIS/QGIS-CKAN-Browser/issues/13
-            if string.find(dest_file, '?') > -1: dest_file = dest_file[:string.find(dest_file, '?')] + dest_file[string.rfind(dest_file, '.'):]
-            self.util.msg_log(u'dest_file: {0}'.format(dest_file))
-
-            # hack for WFS/WM(T)S Services, that don't specify the format as wms, wmts or wfs
-            url_low = url.lower()
-            self.util.msg_log(u'url_low: {0}'.format(url_low))
-            if 'service=wfs' in url_low and 'getcapabilities' in url_low and False is dest_file.endswith('.wfs'):
-                if string.find(dest_file, '?') > -1: dest_file = dest_file[:string.find(dest_file, '?')]
-                dest_file += '.wfs'
-            if 'wmts' in url_low and 'getcapabilities' in url_low and False is dest_file.endswith('.wmts'):
-                if string.find(dest_file, '?') > -1: dest_file = dest_file[:string.find(dest_file, '?')]
-                dest_file += '.wmts'
-            # we use extension wmts for wms too
-            if 'service=wms' in url_low and 'getcapabilities' in url_low and False is dest_file.endswith('.wmts'):
-                if string.find(dest_file, '?') > -1: dest_file = dest_file[:string.find(dest_file, '?')]
-                dest_file += '.wmts'
-
-            self.util.msg_log(u'dest_file: {0}'.format(dest_file))
-
-            # if file name has been set from service, set again after above changes for wfs/wm(t)s
-            if file_name_from_service:
-                # set return value to full path
-                file_name_from_service = dest_file
-
-            #chunk_size = 1024
-            chunk_size = None
-            #http://docs.python-requests.org/en/latest/user/advanced/#chunk-encoded-requests
-            if self.__is_chunked(response.headers.get('transfer-encoding')):
-                self.util.msg_log('response is chunked')
-                chunk_size = None
-
-            with open(dest_file, 'wb') as handle:
-                for chunk in response.iter_content(chunk_size):
-                    if chunk:
-                        handle.write(chunk)
-
-            return True, '', file_name_from_service
-        except RequestsExceptionsTimeout as cte:
-            #self.util.msg_log(u'{0}\n{1}\n\n\n{2}'.format(cte, dir(cte), cte.message))
-            return False, self.util.tr(u'cc_connection_timeout').format(cte.message)
-        except IOError, e:
-            self.util.msg_log("Can't retrieve {0} to {1}: {2}".format(url, dest_file, e))
-            return False, self.util.tr(u'cc_download_error').format(e.strerror), None
-        except NameError as ne:
-            self.util.msg_log(u'{0}'.format(ne))
-            return False, ne.message, None
-        except:
-            return False, self.util.tr(u'cc_download_error').format(sys.exc_info()[0]), None
 
     def get_file_size(self, url):
         """
@@ -320,7 +214,7 @@ class CkanConnector():
             # TODO remove after testing
             # doesn't work headers is object of type 'request.structures.CaseInsensitiveDict'
             # self.util.msg_log(u'{0}'.format(json.dumps(response.headers, indent=2, sort_keys=True)))
-            for k, v in response.headers.iteritems():
+            for k, v in response.headers.items():
                 self.util.msg_log(u"['{0}']: \t{1}".format(k, v))
 
             # Content-Disposition:
@@ -340,14 +234,14 @@ class CkanConnector():
             # hack for WFS/WM(T)S Services, that don't specify the format as wms, wmts or wfs
             url_low = url.lower()
             if 'wfs' in url_low and 'getcapabilities' in url_low and False is dest_file.endswith('.wfs'):
-                if string.find(dest_file, '?') > -1: dest_file = dest_file[:string.find(dest_file, '?')]
+                if dest_file.find('?') > -1: dest_file = dest_file[:dest_file.find('?')]
                 dest_file += '.wfs'
             if 'wmts' in url_low and 'getcapabilities' in url_low and False is dest_file.endswith('.wmts'):
-                if string.find(dest_file, '?') > -1: dest_file = dest_file[:string.find(dest_file, '?')]
+                if dest_file.find('?') > -1: dest_file = dest_file[:dest_file.find('?')]
                 dest_file += '.wmts'
             # we use extension wmts for wms too
             if 'wms' in url_low and 'getcapabilities' in url_low and False is dest_file.endswith('.wmts'):
-                if string.find(dest_file, '?') > -1: dest_file = dest_file[:string.find(dest_file, '?')]
+                if dest_file.find('?') > -1: dest_file = dest_file[:dest_file.find('?')]
                 dest_file += '.wmts'
 
             self.util.msg_log(u'dest_file: {0}'.format(dest_file))
@@ -373,13 +267,14 @@ class CkanConnector():
         except RequestsExceptionsTimeout as cte:
             #self.util.msg_log(u'{0}\n{1}\n\n\n{2}'.format(cte, dir(cte), cte.message))
             return False, self.util.tr(u'cc_connection_timeout').format(cte.message)
-        except IOError, e:
+        except IOError as e:
             self.util.msg_log("Can't retrieve {0} to {1}: {2}".format(url, dest_file, e))
             return False, self.util.tr(u'cc_download_error').format(e.strerror), None
         except NameError as ne:
             self.util.msg_log(u'{0}'.format(ne))
             return False, ne.message, None
         except:
+            self.util.log_error(traceback.format_exc())
             return False, self.util.tr(u'cc_download_error').format(sys.exc_info()[0]), None
 
 
@@ -407,21 +302,21 @@ class CkanConnector():
             self.util.msg_log(u'msg:{0} enc:{1} args:{2} reason:{3}'.format(uee.message, uee.encoding, uee.args, uee.reason))
             return False, self.util.tr(u'cc_api_not_accessible')
         except:
-            self.util.msg_log(u'Unerwarteter Fehler beim Request: {0}'.format(sys.exc_info()[0]))
+            self.util.log_error(traceback.format_exc())
             return False, self.util.tr(u'cc_api_not_accessible')
 
         if response.status_code != 200:
             return False, self.util.tr(u'cc_server_fault')
         try:
-            result = json.loads(response.text)
+            result = json.loads(str(response.text, encoding='utf-8'))
         except TypeError as te:
-            self.util.msg_log(u'Unerwarteter Fehler: {0}'.format(te.message))
+            self.util.log_error(traceback.format_exc())
             return False, self.util.tr(u'cc_api_not_accessible')
         except AttributeError as ae:
-            self.util.msg_log(u'Unerwarteter Fehler: {0}'.format(ae.message))
+            self.util.log_error(traceback.format_exc())
             return False, self.util.tr(u'cc_api_not_accessible')
         except:
-            self.util.msg_log(u'Unerwarteter Fehler: {0}'.format(sys.exc_info()[0]))
+            self.util.log_error(traceback.format_exc())
             return False, self.util.tr(u'cc_invalid_json')
 
         if result['success'] is False:
@@ -430,15 +325,6 @@ class CkanConnector():
 
 
     def _http_call(self, url, **kwargs):
-        """
-        Uses QgsNetworkAccessManager and fall back to requests library if
-        QgsAuthManager is not available.
-        """
-        method = kwargs.get('http_method', 'get')
-        if QgsAuthManager is None:
-            # Fall back to requests lib
-            return getattr(requests, method)(url, **kwargs)
-
         headers = kwargs.get('headers', {})
         # This fixes a wierd error with compressed content nob being correctly
         # inflated.
@@ -451,11 +337,13 @@ class CkanConnector():
         except KeyError:
             pass
         # Avoid double quoting form QUrl
-        url = urllib2.unquote(url)
+        url = urllib.parse.unquote(url)
+
+        method = kwargs.get('http_method', 'get')
 
         self.util.msg_log(u'http_call request: {0}'.format(url))
 
-        class Response():
+        class Response(object):
             status_code = 200
             status_message = 'OK'
             text = ''
@@ -471,11 +359,11 @@ class CkanConnector():
         url = self.util.remove_newline(url)
         req = QNetworkRequest()
         req.setUrl(QUrl(url))
-        for k, v in headers.items():
+        for k, v in list(headers.items()):
             self.util.msg_log("%s: %s" % (k, v))
-            req.setRawHeader(k, v)
+            req.setRawHeader(k.encode(), v.encode())
         if self.authcfg:
-            QgsAuthManager.instance().updateNetworkRequest(req, self.authcfg)
+            QgsApplication.authManager() .updateNetworkRequest(req, self.authcfg)
         if self.reply is not None and self.reply.isRunning():
             self.reply.close()
         func = getattr(QgsNetworkAccessManager.instance(), method)
@@ -484,12 +372,12 @@ class CkanConnector():
         if self.settings.debug:
             self.util.msg_log("Sending %s request to %s" % (method.upper(), req.url().toString()))
             headers = {str(h): str(req.rawHeader(h)) for h in req.rawHeaderList()}
-            for k, v in headers.items():
+            for k, v in list(headers.items()):
                 self.util.msg_log("%s: %s" % (k, v))
         self.reply = func(req)
         if self.authcfg:
             self.util.msg_log("update reply w/ authcfg: {0}".format(self.authcfg))
-            QgsAuthManager.instance().updateNetworkReply(self.reply, self.authcfg)
+            QgsApplication.authManager().updateNetworkReply(self.reply, self.authcfg)
 
         self.reply.finished.connect(self.replyFinished)
         self.reply.downloadProgress.connect(self.downloadProgress)
@@ -501,34 +389,18 @@ class CkanConnector():
         # Catch all exceptions (and clean up requests)
         self.el.exec_()
         # Let's log the whole response for debugging purposes:
-        if self.settings.debug:
-            self.util.msg_log("Got response %s %s from %s" % \
-                              (self.http_call_result.status_code,
-                               self.http_call_result.status_message,
-                               self.reply.url().toString()))
-            headers = {str(h): str(self.reply.rawHeader(h)) for h in self.reply.rawHeaderList()}
-            for k, v in headers.items():
-                self.util.msg_log("%s: %s" % (k, v))
-            if len(self.http_call_result.text) < 1024:
-                self.util.msg_log("Payload :\n%s" % self.http_call_result.text)
-            else:
-                self.util.msg_log("Payload is > 1 KB ...")
-        self.reply.close()
-        self.util.msg_log("Deleting reply ...")
-        self.reply.deleteLater()
-        self.reply = None
+
         if self.http_call_result.exception is not None:
             raise self.http_call_result.exception
         return self.http_call_result
 
-    @pyqtSlot()
     def downloadProgress(self, bytesReceived, bytesTotal):
         #self.util.msg_log("downloadProgress %s of %s ..." % (bytesReceived, bytesTotal))
         pass
 
-    @pyqtSlot()
     def replyFinished(self):
         err = self.reply.error()
+        url = self.reply.url()
         httpStatus = self.reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
         httpStatusMessage = self.reply.attribute(QNetworkRequest.HttpReasonPhraseAttribute)
         self.http_call_result.status_code = httpStatus
@@ -549,9 +421,52 @@ class CkanConnector():
             else:
                 self.http_call_result.exception = Exception(msg)
         else:
-            self.http_call_result.text = str(self.reply.readAll())
-            self.http_call_result.ok = True
+            redirectionUrl = self.reply.attribute(QNetworkRequest.RedirectionTargetAttribute)
+            if redirectionUrl is not None and redirectionUrl != self.reply.url():
+                if redirectionUrl.isRelative():
+                    redirectionUrl = self.reply.url().resolved(redirectionUrl)
 
+                msg = "Redirected from '{}' to '{}'".format(
+                    self.reply.url().toString(), redirectionUrl.toString())
+                self.util.msg_log(msg)
+
+                self.reply.deleteLater()
+                self.reply = None
+                self._http_call(redirectionUrl.toString())
+            # really end request
+            else:
+                msg = "Network success #{0}".format(self.reply.error())
+                self.http_call_result.reason = msg
+                self.util.msg_log(msg)
+
+                self.http_call_result.text = self.reply.readAll().data()
+                self.http_call_result.ok = True
+
+        # Let's log the whole response for debugging purposes:
+        if self.settings.debug:
+            self.util.msg_log("Got response %s %s from %s" % \
+                        (self.http_call_result.status_code,
+                         self.http_call_result.status_message,
+                         url))
+            for k, v in list(self.http_call_result.headers.items()):
+                self.util.msg_log("%s: %s" % (k, v))
+            if len(self.http_call_result.text) < 1024:
+                self.util.msg_log("Payload :\n%s" % str(self.http_call_result.text))
+            else:
+                self.util.msg_log("Payload is > 1 KB ...")
+
+        # clean reply
+        if self.reply is not None:
+            if self.reply.isRunning():
+                self.reply.close()
+            self.util.msg_log("Deleting reply ...")
+            # Disconnect all slots
+            self.reply.finished.disconnect(self.replyFinished)
+            self.reply.downloadProgress.disconnect(self.downloadProgress)
+            self.reply.deleteLater()
+            self.reply = None
+        else:
+            self.util.msg_log("Reply was already deleted ...")
 
     def __get_start(self, page):
         start = self.limit * page - self.limit
