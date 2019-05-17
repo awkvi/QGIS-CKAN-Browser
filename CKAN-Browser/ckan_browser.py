@@ -56,19 +56,19 @@ class CKANBrowser(object):
             self.plugin_dir,
             'i18n',
             'CKANBrowser_{}.qm'.format(locale))
-        
+
         # load english file for testing
 #         locale_path = os.path.join(
 #             self.plugin_dir,
 #             'i18n',
 #             'CKANBrowser_en.qm')
-        
+
         if not os.path.exists(locale_path):
             locale_path = os.path.join(
                 self.plugin_dir,
                 'i18n',
                 'CKANBrowser_en.qm')
-        
+
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
@@ -81,6 +81,9 @@ class CKANBrowser(object):
         self.util = Util(self.settings, self.iface.mainWindow())
 
         # TODO ping API
+
+        # Initialize the browser dialog reference
+        self.dlg = None
 
         # Create the dialog (after translation) and keep reference
 #         self.dlg = CKANBrowserDialog(self.settings, self.iface, self.iface.mainWindow())
@@ -177,9 +180,9 @@ class CKANBrowser(object):
             callback=self.run,
             parent=self.iface.mainWindow()
         )
-        
+
         icon_settings = os.path.join(os.path.dirname(__file__), 'icon-settings.png')
-        
+
         self.add_action(
             icon_settings,
             text=self.util.tr(u'ckan_browser_settings'),
@@ -197,21 +200,26 @@ class CKANBrowser(object):
 
     def run(self):
         """Run method that performs all the real work"""
-        
+
         is_open = QSettings().value("ckan_browser/isopen", False)
         #Python treats almost everything as True````
         #is_open = bool(is_open)
         self.util.msg_log(u'isopen: {0}'.format(is_open))
-        
+
         #!!!string comparison - Windows and Linux treat it as string, Mac as bool
         # so we convert string to bool
         if isinstance(is_open, str):
             is_open = self.util.str2bool(is_open)
-        
+
         if is_open:
             self.util.msg_log(u'Dialog already opened')
+            if self.dlg:
+                self.util.msg_log(u'Bringing dialog to front...')
+                self.dlg.raise_()
+                self.dlg.activateWindow()
+                self.dlg.show()
             return
-        
+
         # auf URL testen
         dir_check = self.util.check_dir(self.settings.cache_dir)
         api_url_check = self.util.check_api_url(self.settings.ckan_url)
@@ -224,10 +232,10 @@ class CKANBrowser(object):
 
 #         self.util.msg_log('cache_dir: {0}'.format(self.settings.cache_dir))
 
-        try: 
+        try:
             QSettings().setValue("ckan_browser/isopen", True)
             self.dlg = CKANBrowserDialog(self.settings, self.iface, self.iface.mainWindow())
-            
+
             # show the dialog
             self.dlg.show()
             #self.dlg.open()
@@ -238,7 +246,7 @@ class CKANBrowser(object):
                 # Do something useful here - delete the line containing pass and
                 # substitute with your code.
                 pass
-        finally: 
+        finally:
             QSettings().setValue("ckan_browser/isopen", False)
 
     def open_settings(self):
