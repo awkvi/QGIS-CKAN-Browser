@@ -11,7 +11,7 @@ name=CKAN-Browser
 qgisMinimumVersion=3.0
 about=Download and display Open Data from CKAN Metadata Servers
 description=Download and display Open Data from CKAN Metadata Servers
-version=0.3.3
+version=0.3.4
 author=BergWerkGIS
 email=wb@BergWerk-GIS.at
 
@@ -20,10 +20,11 @@ email=wb@BergWerk-GIS.at
 # Optional items:
 
 # Uncomment the following line and add your changelog:
-changelog=v0.3.3 (2017-03-11)
-* Fix https://open.nrw/api/3 WMS https://open.nrw/api/3WMS https://github.com/BergWerkGIS/QGIS-CKAN-Browser/issues/13
-
-
+changelog=v0.3.4 (2019-05-16)
+  * Updated for QGIS 3
+  * Added QGIS authentication manager support
+  v0.3.3 (2017-03-11)
+  * Fix https://open.nrw/api/3 WMS https://open.nrw/api/3WMS https://github.com/BergWerkGIS/QGIS-CKAN-Browser/issues/13
 
 # Tags are comma separated with spaces allowed
 tags=open data, ckan
