@@ -5,8 +5,8 @@
 #							 -------------------
 #		begin				: 2014-10-24
 #		git sha				: $Format:%H$
-#		copyright			: (C) 2014 by BergWerk GIS, 2019 by Planet Inc.
-#		email				: wb@BergWerk-GIS.at, lshaffer@federal.planet.com
+#		copyright			: (C) 2014 by BergWerk GIS
+#		email				: wb@BergWerk-GIS.at
 # ***************************************************************************/
 #
 #/***************************************************************************
@@ -24,15 +24,7 @@
 
 
 #Add iso code for any locales you want to support here (space separated)
-# default is no locales
 LOCALES = CKANBrowser_en CKANBrowser_de CKANBrowser_fi
-
-# If locales are enabled, set the name of the lrelease binary on your system. If
-# you have trouble compiling the translations, you may have to specify the full path to
-# lrelease
-LRELEASE = lrelease
-#LRELEASE = lrelease-qt4
-
 
 # translation
 SOURCES = \
@@ -65,22 +57,8 @@ EXTRAS = \
 	metadata.txt \
 	CKAN_APIs.json
 
-EXTRA_DIRS =
+COMPILED_RESOURCE_FILES = resources_rc.py
 
-COMPILED_RESOURCE_FILES = resources.py
-
-PEP8EXCLUDE=pydev,resources.py,conf.py,third_party,ui
-
-# QGISDIR points to the location where your plugin should be installed.
-# This varies by platform, relative to your HOME directory:
-#	* Linux:
-#	  .local/share/QGIS/QGIS3/profiles/default/python/plugins/
-#	* Mac OS X:
-#	  Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins
-#	* Windows:
-#	  AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins'
-
-QGISDIR=Library/Application\ Support/QGIS/QGIS3/profiles/default
 
 #################################################
 # Normally you would not need to edit below here
@@ -90,25 +68,17 @@ HELP = help/build/html
 
 PLUGIN_UPLOAD = $(c)/plugin_upload.py
 
-#RESOURCE_SRC=$(shell grep '^ *<file' ${TemplateQrcFiles} | sed 's@</file>@@g;s/.*>//g' | tr '\n' ' ')
+QGISDIR=.qgis2
 
-.PHONY: default
 default: compile
-	@echo While you can use make to build and deploy your plugin, pb_tool
-	@echo is a much better solution.
-	@echo A Python script, pb_tool provides platform independent management of
-	@echo your plugins and runs anywhere.
-	@echo You can install pb_tool using: pip install pb_tool
-	@echo See https://g-sherman.github.io/plugin_build_tool/ for info. 
 
 compile: $(COMPILED_RESOURCE_FILES)
 
-#%.py : %.qrc $(RESOURCES_SRC)
-%.py : %.qrc
-	pyrcc5 -o $*.py  $<
+%_rc.py : %.qrc
+	pyrcc4 -o $*_rc.py  $<
 
 %.qm : %.ts
-	$(LRELEASE) $<
+	lrelease $<
 
 test: compile transcompile
 	@echo
@@ -128,10 +98,10 @@ test: compile transcompile
 	@echo "e.g. source run-env-linux.sh <path to qgis install>; make test"
 	@echo "----------------------"
 
-deploy: compile doc transcompile derase
+deploy: compile doc transcompile
 	@echo
 	@echo "------------------------------------------"
-	@echo "Deploying plugin to your QGIS3 profile directory."
+	@echo "Deploying plugin to your .qgis2 directory."
 	@echo "------------------------------------------"
 	# The deploy  target only works on unix like operating system where
 	# the Python plugin directory is located at:
@@ -139,25 +109,23 @@ deploy: compile doc transcompile derase
 	mkdir -p $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(PY_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(UI_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
+	#cp -vf $(COMPILED_UI_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(COMPILED_RESOURCE_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(EXTRAS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
-	#cp -vfr request $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
-	cp -vfr pyperclip $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vfr i18n $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
+	cp -vfr request $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
+	cp -vfr pyperclip $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	#cp -vfr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help
-	# Copy extra directories if any
-	$(foreach EXTRA_DIR,$(EXTRA_DIRS), cp -R $(EXTRA_DIR) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/;)
-
 
 # The dclean target removes compiled python files from plugin directory
-# also deletes any .git entry
+# also deletes any .svn entry
 dclean:
 	@echo
 	@echo "-----------------------------------"
 	@echo "Removing any compiled python files."
 	@echo "-----------------------------------"
 	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname "*.pyc" -delete
-	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname ".git" -prune -exec rm -Rf {} \;
+	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname ".svn" -prune -exec rm -Rf {} \;
 
 
 derase:
@@ -214,7 +182,7 @@ transcompile:
 	@echo "Compiled translation files to .qm files."
 	@echo "----------------------------------------"
 	@chmod +x scripts/compile-strings.sh
-	@scripts/compile-strings.sh $(LRELEASE) $(LOCALES)
+	@scripts/compile-strings.sh $(LOCALES)
 
 transclean:
 	@echo
@@ -258,7 +226,4 @@ pep8:
 	@echo "-----------"
 	@echo "PEP8 issues"
 	@echo "-----------"
-	@pep8 --repeat --ignore=E203,E121,E122,E123,E124,E125,E126,E127,E128 --exclude $(PEP8EXCLUDE) . || true
-	@echo "-----------"
-	@echo "Ignored in PEP8 check:"
-	@echo $(PEP8EXCLUDE)
+	@pep8 --repeat --ignore=E203,E121,E122,E123,E124,E125,E126,E127,E128 --exclude pydev,resources_rc.py,conf.py . || true
