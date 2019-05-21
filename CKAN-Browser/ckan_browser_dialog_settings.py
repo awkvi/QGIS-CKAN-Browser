@@ -73,7 +73,7 @@ class CKANBrowserDialogSettings(QDialog, FORM_CLASS):
         self.cc = CkanConnector(self.settings, self.util)
 
         self.pre_ckan_apis = None
-        self.fill_combobox();
+        self.fill_combobox()
 
     def fill_combobox(self):
         """ Fill Combobox with predefined CKAN API Urls """
