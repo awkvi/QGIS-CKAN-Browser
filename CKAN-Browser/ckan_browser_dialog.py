@@ -25,7 +25,7 @@ from builtins import next
 from builtins import range
 import math
 import os
-from qgis.PyQt.QtCore import Qt, QTimer
+from qgis.PyQt.QtCore import Qt, QTimer, QSettings, QByteArray
 from qgis.PyQt import QtGui, uic
 from qgis.PyQt.QtWidgets import QApplication, QListWidgetItem, QDialog, QMessageBox
 from .ckan_browser_dialog_disclaimer import CKANBrowserDialogDisclaimer
@@ -55,6 +55,8 @@ class CKANBrowserDialog(QDialog, FORM_CLASS):
         self.current_page = 1
         self.page_count = 0
         self.current_group = None
+        self.KEY_DLG_GEOM = "ckan_browser/dlg_geometry"
+        self.KEY_DLG_SPLITTER = "ckan_browser/dlg_splitter"
         # TODO:
         # * create settings dialog
         # * read SETTINGS
@@ -74,12 +76,30 @@ class CKANBrowserDialog(QDialog, FORM_CLASS):
         icon_path = self.util.resolve(u'icon-copy.png')
         self.IDC_bCopy.setIcon(QtGui.QIcon(icon_path))
 
+        self.qgis_settings = QSettings()
+        if self.qgis_settings.contains(self.KEY_DLG_GEOM):
+            self.restoreGeometry(
+                self.qgis_settings.value(self.KEY_DLG_GEOM, QByteArray()))
+        self.finished.connect(self.save_window_geometry)
+        if self.qgis_settings.contains(self.KEY_DLG_SPLITTER):
+            self.splitter.restoreState(
+                self.qgis_settings.value(self.KEY_DLG_SPLITTER, QByteArray()))
+        self.finished.connect(self.save_splitter_state)
+
         self.cc = CkanConnector(self.settings, self.util)
 
         self.timer = QTimer()
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.window_loaded)
         QApplication.setOverrideCursor(Qt.WaitCursor)
+
+    def save_window_geometry(self):
+        self.qgis_settings.setValue(self.KEY_DLG_GEOM,
+                                    self.saveGeometry())
+
+    def save_splitter_state(self):
+        self.qgis_settings.setValue(self.KEY_DLG_SPLITTER,
+                                    self.splitter.saveState())
 
     def showEvent(self, event):
         self.util.msg_log('showevent')
