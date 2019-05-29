@@ -302,6 +302,8 @@ class CKANBrowserDialog(QDialog, FORM_CLASS):
             dest_file = os.path.join(dest_dir, os.path.split(resource['url'])[1])
             dest_file = dest_file.replace("?","")
 
+            ows_dest_file = False
+
             # wmts
             format_lower = resource['format'].lower()
             if format_lower == 'wms':
@@ -311,6 +313,7 @@ class CKANBrowserDialog(QDialog, FORM_CLASS):
                 resource_url_lower = resource_url.lower()
                 if not resource_url_lower.endswith('.qlr'):
                     dest_file += '.wmts'
+                    ows_dest_file = True
                 #pyperclip.copy(resource_url)
                 """
                 self.util.dlg_information(u'{0}\n{1}\n\n{2}\n{3}\n{4}'.format(
@@ -324,19 +327,29 @@ class CKANBrowserDialog(QDialog, FORM_CLASS):
                 """
             if format_lower == 'wfs':
                 dest_file += '.wfs'
+                ows_dest_file = True
             if format_lower == 'georss':
                 dest_file += '.georss'
 
             do_download = True
             do_delete = False
             if os.path.isfile(dest_file):
-                if QMessageBox.Yes == self.util.dlg_yes_no(self.util.tr(u'py_dlg_base_data_already_loaded')):
+                if ows_dest_file:
+                    do_delete = True
+                    do_download = True
+                elif QMessageBox.Yes == self.util.dlg_yes_no(self.util.tr(u'py_dlg_base_data_already_loaded')):
                     do_delete = True
                     do_download = True
                 else:
                     do_download = False
             if do_download is True:
-                file_size_ok, file_size = self.cc.get_file_size(resource['url'])
+                if ows_dest_file:
+                    # Skip HEAD request to gather file size info, which is
+                    # unnecessary for GetCapabilities call,
+                    # (or may not be an allowed HTTP request method)
+                    file_size_ok, file_size = True, 0
+                else:
+                    file_size_ok, file_size = self.cc.get_file_size(resource['url'])
                 # Silently ignore the error
                 if not file_size_ok:
                     file_size = 0
